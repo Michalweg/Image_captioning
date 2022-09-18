@@ -61,7 +61,7 @@ class DataHandler:
                  if word not in self.config['stopwords']]
         MAX_CAPTION_LEN = max(MAX_CAPTION_LEN, len(words))
         self.config['max_caption_len'] = MAX_CAPTION_LEN
-        return (' '.join(words))
+        return ' '.join(words)
 
     def retrieve_captions(self, dataset):
         captions = []

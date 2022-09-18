@@ -1,11 +1,11 @@
 import argparse
 from configparser import ConfigParser
-from utils import convert_config, data_check
-from data_handler import DataHandler
-from encoder import ImageEncoder
-from decoder import CaptionDecoder
+from src.utils import convert_config, data_check
+from src.data_handler import DataHandler
+from src.encoder import ImageEncoder
+from src.decoder import CaptionDecoder
 import tensorflow as tf
-from training_manager import TrainingManager
+from src.training_manager import TrainingManager
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', type=str, dest='data_path', default='data')
