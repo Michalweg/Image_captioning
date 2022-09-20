@@ -1,5 +1,5 @@
 import tensorflow as tf
-from attention import BahdanauAttention
+from src.attention import BahdanauAttention
 
 
 class CaptionDecoder(tf.keras.Model):
