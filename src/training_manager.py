@@ -1,10 +1,10 @@
 import tensorflow as tf
 import time
-
+import os
 
 class TrainingManager:
 
-    def __init__(self, encoder, decoder, tokenizer, optimizer, config):
+    def __init__(self, encoder, decoder, tokenizer, optimizer, config, checkpoint_file_dir='/checkpoints'):
         self.encoder = encoder
         self.decoder = decoder
         self.tokenizer = tokenizer
@@ -12,6 +12,7 @@ class TrainingManager:
                             from_logits=True, reduction='none')
         self.optimizer = optimizer
         self.config = config
+        self.checkpoints_file_dir = checkpoint_file_dir
 
     def loss_function(self, real, pred):
         mask = tf.math.logical_not(tf.math.equal(real, 0))
@@ -60,7 +61,15 @@ class TrainingManager:
     def fit(self, batched_dataset):
         prev_loss = 999
         loss_plot = []
+        logs = {}
+        model_checkpoint_path = os.path.join(self.checkpoints_file_dir, 'weights.{epoch:02d}-{val_loss:.2f}.h5')
+        model_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_checkpoint_path, save_best_only=True, save_freq=100)
+        _callbacks = [model_checkpoint]
+        callbacks = tf.keras.callbacks.CallbackList(
+            _callbacks, add_history=True)
+        callbacks.on_train_begin(logs=logs)
         for epoch in range(20):
+
             start = time.time()
             total_loss = 0
             num_steps = 0
@@ -73,6 +82,7 @@ class TrainingManager:
                 if batch % 100 == 0:
                     print('Epoch {} Batch {} Loss {:.4f}'.format(
                         epoch + 1, batch, batch_loss.numpy() / int(target.shape[1])))
+                    callbacks.on_batch_end(epoch, logs)
 
             current_loss = total_loss / num_steps
 
