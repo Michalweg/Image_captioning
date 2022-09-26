@@ -1,10 +1,13 @@
 import tensorflow as tf
 import time
+import numpy as np
 import os
+import re
+
 
 class TrainingManager:
 
-    def __init__(self, encoder, decoder, tokenizer, optimizer, config, checkpoint_file_dir='/checkpoints'):
+    def __init__(self, encoder, decoder, tokenizer, optimizer, config, saved_models_file_dir='/saved_models'):
         self.encoder = encoder
         self.decoder = decoder
         self.tokenizer = tokenizer
@@ -12,7 +15,7 @@ class TrainingManager:
                             from_logits=True, reduction='none')
         self.optimizer = optimizer
         self.config = config
-        self.checkpoints_file_dir = checkpoint_file_dir
+        self.saved_models_file_dir = saved_models_file_dir
 
     def loss_function(self, real, pred):
         mask = tf.math.logical_not(tf.math.equal(real, 0))
@@ -41,7 +44,7 @@ class TrainingManager:
 
             for i in range(1, target.shape[1]):
                 # passing the features through the decoder
-                predictions, hidden, _ = self.decoder(dec_input, features, hidden)
+                predictions, hidden, _ = self.decoder((dec_input, features, hidden))
 
                 loss += self.loss_function(target[:, i], predictions)
 
@@ -59,17 +62,10 @@ class TrainingManager:
         return loss, total_loss
 
     def fit(self, batched_dataset):
-        prev_loss = 999
+        prev_epoch_loss = 999
         loss_plot = []
-        logs = {}
-        model_checkpoint_path = os.path.join(self.checkpoints_file_dir, 'weights.{epoch:02d}-{val_loss:.2f}.h5')
-        model_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_checkpoint_path, save_best_only=True, save_freq=100)
-        _callbacks = [model_checkpoint]
-        callbacks = tf.keras.callbacks.CallbackList(
-            _callbacks, add_history=True)
-        callbacks.on_train_begin(logs=logs)
-        for epoch in range(20):
 
+        for epoch in range(self.config['epochs']):
             start = time.time()
             total_loss = 0
             num_steps = 0
@@ -80,16 +76,17 @@ class TrainingManager:
                 num_steps += 1
 
                 if batch % 100 == 0:
+                    scaled_batch_los = batch_loss.numpy() / int(target.shape[1])
                     print('Epoch {} Batch {} Loss {:.4f}'.format(
-                        epoch + 1, batch, batch_loss.numpy() / int(target.shape[1])))
-                    callbacks.on_batch_end(epoch, logs)
+                        epoch + 1, batch, scaled_batch_los))
+
+                    if self.save_model_check(scaled_batch_los):
+                        self.save_model(scaled_batch_los)
 
             current_loss = total_loss / num_steps
 
             # storing the epoch end loss value to plot later
             loss_plot.append(current_loss)
-
-            # ckpt_manager.save()
 
             print('Epoch {} Loss {:.6f} Time taken {:.1f} sec'.format(
                 epoch + 1,
@@ -97,9 +94,39 @@ class TrainingManager:
                 time.time() - start))
 
             # stop once it has converged
-            improvement = prev_loss - current_loss
+            improvement = prev_epoch_loss - current_loss
             if improvement < self.config['early_stop_thresh']:
                 print("Stopping because improvement={} < {}".format(improvement, self.config['early_stop_thresh']))
                 break
-            prev_loss = current_loss
+            prev_epoch_loss = current_loss
+
+    def save_model(self, loss_value):
+        model_path = os.path.join(self.saved_models_file_dir, 'total_loss_' + str(round(loss_value, 3)))
+        model_path = model_path if model_path[0] != '/' else model_path[1:]  # Permission problem
+        self.encoder.save(os.path.join(model_path, 'encoder'))  # _model(self.encoder, 'saved_models/total_loss_5.761_encoder', save_format='tf')
+        self.decoder.save(os.path.join(model_path, 'decoder'))
+
+    def save_model_check(self, loss_value, remove_other_models=True):
+        try:
+            current_best_model_paths = os.listdir(self.saved_models_file_dir)
+        except FileNotFoundError:
+            try:
+                current_best_model_paths = os.listdir('.' + self.saved_models_file_dir)
+            except FileNotFoundError:  # The provided pass does not exist
+                return True
+
+        current_best_models_loses = []
+        for best_model_path in current_best_model_paths:
+            current_best_model_loss = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", best_model_path)
+            # Exclude any integers
+            current_best_model_loss = [model_loss for model_loss in current_best_model_loss if '.' in model_loss]
+            if current_best_model_loss:
+                current_best_models_loses.append(float(current_best_model_loss[0]))
+
+        if loss_value < min(current_best_models_loses):  # If current model is better than others
+            if remove_other_models:
+                for model_path in current_best_model_paths:
+                    os.rmdir(model_path)
+            return True
+        return False
 

@@ -6,21 +6,21 @@ class CaptionDecoder(tf.keras.Model):
     def __init__(self, embedding_dim, units, vocab_size, max_caption_length):
         super(CaptionDecoder, self).__init__()
         self.units = units
-
         self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, input_length=max_caption_length)
-
         self.gru = tf.keras.layers.GRU(self.units,
                                        return_sequences=True,
                                        return_state=True,
                                        recurrent_initializer='glorot_uniform')
         self.fc1 = tf.keras.layers.Dense(self.units)
         self.fc2 = tf.keras.layers.Dense(vocab_size)
-
         self.attention = BahdanauAttention(self.units)
+        # self.reshape_layer - tf.keras.layers.Reshape((-1, ))
 
-    def call(self, x, features, hidden):
+
+    def call(self, x):
+        x, features, hidden = x
         # defining attention as a separate model
-        context_vector, attention_weights = self.attention(features, hidden)
+        context_vector, attention_weights = self.attention((features, hidden))
 
         # x shape after passing through embedding == (batch_size, 1, embedding_dim)
         x = self.embedding(x)

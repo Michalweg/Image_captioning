@@ -9,13 +9,13 @@ class ImageEncoder(tf.keras.Model):
             include_top=False,
             weights='imagenet'
         )
-        self.model = tf.keras.Model(inception.input,
-                                    inception.layers[-1].output)
-        self.fc = tf.keras.layers.Dense(embedding_dim)
+        self.reshape_layer = tf.keras.layers.Reshape((-1, 2048))
+        self.backbone = tf.keras.Model(inception.input,
+                                       inception.layers[-1].output)
+        self.fc = tf.keras.layers.Dense(embedding_dim, activation='relu')
 
     def call(self, x):
-        x = self.model(x)
-        x = tf.reshape(x, (x.shape[0], -1, x.shape[3]))
+        x = self.backbone(x)
+        x = self.reshape_layer(x)
         x = self.fc(x)
-        x = tf.nn.relu(x)
         return x
