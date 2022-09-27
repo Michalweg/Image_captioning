@@ -9,7 +9,8 @@ class BahdanauAttention(tf.keras.Model):
     self.W2 = tf.keras.layers.Dense(units)
     self.V = tf.keras.layers.Dense(1)
 
-  def call(self, features, hidden):
+  def call(self, inputs):
+    features, hidden = inputs
     # features(CNN_encoder output) shape == (batch_size, 64, embedding_dim)
     # hidden shape == (batch_size, hidden_size)
     # hidden_with_time_axis shape == (batch_size, 1, hidden_size)

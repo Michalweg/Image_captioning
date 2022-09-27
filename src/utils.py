@@ -19,7 +19,10 @@ def convert_config(parser):
 
 
 def data_check(data_path):
-    if os.listdir(data_path) is not None:
-        return True
-    else:
+    try:
+        if os.listdir(data_path) is not None:
+            return True
+        else:
+            return False
+    except FileNotFoundError:
         return False
