@@ -1,13 +1,15 @@
-import tensorflow as tf
-import time
-import numpy as np
 import os
 import re
+import time
+
+import tensorflow as tf
+
+from src.decoder import CaptionDecoder
 
 
 class TrainingManager:
 
-    def __init__(self, encoder, decoder, tokenizer, optimizer, config, saved_models_file_dir='/saved_models'):
+    def __init__(self, encoder, decoder, tokenizer, optimizer, config, saved_models_file_dir='saved_models'):
         self.encoder = encoder
         self.decoder = decoder
         self.tokenizer = tokenizer
@@ -34,7 +36,7 @@ class TrainingManager:
 
         # initializing the hidden state for each batch
         # because the captions are not related from image to image
-        hidden = self.decoder.reset_state(batch_size=target.shape[0])
+        hidden = CaptionDecoder.reset_state(target.shape[0], self.decoder.units)
 
         # initialize the batch of predictions with [[3],[3], ...] i.e. with start tokens
         dec_input = tf.expand_dims([self.tokenizer(['starttoken'])[0][0]] * target.shape[0], 1)
@@ -103,30 +105,27 @@ class TrainingManager:
     def save_model(self, loss_value):
         model_path = os.path.join(self.saved_models_file_dir, 'total_loss_' + str(round(loss_value, 3)))
         model_path = model_path if model_path[0] != '/' else model_path[1:]  # Permission problem
-        self.encoder.save(os.path.join(model_path, 'encoder'))  # _model(self.encoder, 'saved_models/total_loss_5.761_encoder', save_format='tf')
+        self.encoder.save(os.path.join(model_path, 'encoder'))
         self.decoder.save(os.path.join(model_path, 'decoder'))
 
-    def save_model_check(self, loss_value, remove_other_models=True):
+    def save_model_check(self, loss_value):
         try:
-            current_best_model_paths = os.listdir(self.saved_models_file_dir)
-        except FileNotFoundError:
-            try:
-                current_best_model_paths = os.listdir('.' + self.saved_models_file_dir)
-            except FileNotFoundError:  # The provided pass does not exist
-                return True
+            saved_models_paths = os.listdir(self.saved_models_file_dir)
+        except FileNotFoundError:  # The provided pass does not exist (saved_models dir has not been created yet)
+            return True  # Creates saved_models directory and saves model
 
-        current_best_models_loses = []
-        for best_model_path in current_best_model_paths:
-            current_best_model_loss = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", best_model_path)
+        saved_models_losses = []
+        for saved_model_path in saved_models_paths:
+            # List of numbers found in the saved model path
+            saved_model_loss = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", saved_model_path)
             # Exclude any integers
-            current_best_model_loss = [model_loss for model_loss in current_best_model_loss if '.' in model_loss]
-            if current_best_model_loss:
-                current_best_models_loses.append(float(current_best_model_loss[0]))
+            saved_model_loss = [model_loss for model_loss in saved_model_loss if '.' in model_loss]
 
-        if loss_value < min(current_best_models_loses):  # If current model is better than others
-            if remove_other_models:
-                for model_path in current_best_model_paths:
-                    os.rmdir(model_path)
-            return True
-        return False
+            if saved_model_loss:
+                saved_models_losses.append(float(saved_model_loss[0]))  # If loss is float, appends to the list
+
+        if saved_models_losses:  # If any model already saved
+            if loss_value < min(saved_models_losses):  # If current model is better than others
+                return True
+        return True  # No model was saved yet, so save the current one
 

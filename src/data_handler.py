@@ -23,7 +23,7 @@ class DataHandler:
             for data in dataset:
                 captions = data['captions']
                 img_tensor = data['image_tensor']
-                str_captions = [self.preprocess_caption(c) for c in data['captions'].numpy()]
+                str_captions = [self.preprocess_caption(c) for c in captions.numpy()]
                 padded = tokenizer(str_captions)
                 for caption in padded:
                     yield img_tensor, caption  # repeat image

@@ -1,4 +1,7 @@
+import inspect
+
 import tensorflow as tf
+
 from src.attention import BahdanauAttention
 
 
@@ -14,8 +17,10 @@ class CaptionDecoder(tf.keras.Model):
         self.fc1 = tf.keras.layers.Dense(self.units)
         self.fc2 = tf.keras.layers.Dense(vocab_size)
         self.attention = BahdanauAttention(self.units)
-        # self.reshape_layer - tf.keras.layers.Reshape((-1, ))
-
+        self.embedding_dim = embedding_dim
+        self.vocab_size = vocab_size
+        self.max_caption_length = max_caption_length
+        self._init_params = self.get_init_parameters(locals())
 
     def call(self, x):
         x, features, hidden = x
@@ -42,5 +47,19 @@ class CaptionDecoder(tf.keras.Model):
 
         return x, state, attention_weights
 
-    def reset_state(self, batch_size):
-        return tf.zeros((batch_size, self.units))
+    def get_config(self):
+        return self._init_params
+
+    def get_init_parameters(self, local_parameters):
+        init_params_dict = dict(inspect.signature(self.__init__).parameters)
+        for key in init_params_dict.keys():
+            init_params_dict[key] = local_parameters[key]
+        return init_params_dict
+
+    @classmethod
+    def reset_state(cls, batch_size, units):
+        return tf.zeros((batch_size, units))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
