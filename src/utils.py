@@ -25,10 +25,7 @@ def convert_config(parser):
 
 def data_check(data_path):
     try:
-        if os.listdir(data_path) is not None:
-            return True
-        else:
-            return False
+        return os.listdir(data_path) is not None
     except FileNotFoundError:
         return False
 
@@ -41,12 +38,14 @@ def load_models(models_dir):
     return encoder, decoder
 
 
-def check_args(args):
+def check_model_path(args):
     """
-    Checks the correctness of passed arguments
-    :param args: passed arguments
+    Checks the correctness of provided path to a model.
+    :param args: Passed arguments as arguments parser
     :return: Updated arguments (if needed)
     """
     if args.continue_training:
-        args.continue_training = os.path.isdir(args.model_path)
-    return args
+        if os.path.isdir(args.model_path):
+            if os.listdir(args.model_path) is not None:
+                return args
+    raise FileNotFoundError(f"The provided path: {args.model_path} is invalid")

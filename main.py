@@ -7,7 +7,7 @@ from src.data_handler import DataHandler
 from src.decoder import CaptionDecoder
 from src.encoder import ImageEncoder
 from src.training_manager import TrainingManager
-from src.utils import convert_config, data_check, load_models, check_args
+from src.utils import convert_config, data_check, load_models, check_model_path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_path', type=str, dest='data_path', default='data')
@@ -15,7 +15,7 @@ parser.add_argument('--config-path', type=str, dest='config_path', default='conf
 parser.add_argument('--continue_training', type=bool, dest='continue_training', default=False)
 parser.add_argument('--model_path', type=str, dest='model_path', default='saved_models/total_loss_5.764')
 args = parser.parse_args()
-args = check_args(args)
+args = check_model_path(args)
 
 config = ConfigParser()
 config.read(args.config_path, encoding='utf-8')
