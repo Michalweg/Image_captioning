@@ -3,9 +3,9 @@
 ## Project description 
 
 **Image captioning**, a technique that aims to generate text describing an image is presented in the project. An example 
-of this technique is demonstrated below: 
+of this technique is demonstrated below:
 
-![](/Users/Michal/Downloads/straw_hat.png "An example of image captioning")
+<img height="200" src="/Users/Michal/Downloads/straw_hat.png" title="An example of image captioning" width="200"/>
 
 Image source: [Towards_data_science article](https://towardsdatascience.com/image-captioning-in-deep-learning-9cd23fb4d8d2)
 
