@@ -15,7 +15,7 @@ parser.add_argument('--config-path', type=str, dest='config_path', default='conf
 parser.add_argument('--continue_training', type=bool, dest='continue_training', default=False)
 parser.add_argument('--model_path', type=str, dest='model_path', default='saved_models/total_loss_5.764')
 args = parser.parse_args()
-args = check_model_path(args)
+check_model_path(args)  # Checks whether passed arguments are valid
 
 config = ConfigParser()
 config.read(args.config_path, encoding='utf-8')
@@ -23,6 +23,7 @@ config_base = convert_config(config['DEFAULT'])
 
 data_handler = DataHandler(config_base, args.data_path)
 
+# Checks for downloaded data, if there's None, downloads it
 if data_check(args.data_path):
     batched_dataset = data_handler.get_batched_ds()
 else:

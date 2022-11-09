@@ -1,10 +1,14 @@
-import inspect
+from __future__ import annotations
 
+import inspect
 import tensorflow as tf
 
 
 class BahdanauAttention(tf.keras.Model):
-
+    """
+    Attention model included in the decoder class, which describes on which part of the image model should focus its attention
+    when generating text.
+    """
     def __init__(self, units):
         super(BahdanauAttention, self).__init__()
         self.W1 = tf.keras.layers.Dense(units)
@@ -13,6 +17,11 @@ class BahdanauAttention(tf.keras.Model):
         self._init_params = self.get_init_parameters(locals())
 
     def call(self, inputs):
+        """
+        Defines a forward pass of an attention model through the model
+        :param inputs: Data to be forwarded through the attention
+        :return: The result of passing data through the model
+        """
         features, hidden = inputs
         # features(CNN_encoder output) shape == (batch_size, 64, embedding_dim)
         # hidden shape == (batch_size, hidden_size)
@@ -35,11 +44,20 @@ class BahdanauAttention(tf.keras.Model):
         context_vector = tf.reduce_sum(context_vector, axis=1)
         return context_vector, attention_weights
 
-    def get_init_parameters(self, local_parameters):
+    def get_init_parameters(self, local_arguments):
+        """
+        Extracts arguments that are passed to the class initializer.
+        :param local_arguments: Dictionary with all local arguments from the class initializer
+        :return: Dictionary with all required arguments from the class initializer
+        """
         init_params_dict = dict(inspect.signature(self.__init__).parameters)
         for key in init_params_dict.keys():
-            init_params_dict[key] = local_parameters[key]
+            init_params_dict[key] = local_arguments[key]
         return init_params_dict
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """
+            Method used to get model configuration when saving a model
+            :return: Dictionary with arguments required by the class initializer
+        """
         return self._init_params

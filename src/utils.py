@@ -7,7 +7,12 @@ from src.decoder import CaptionDecoder
 from src.encoder import ImageEncoder
 
 
-def convert_config(parser):
+def convert_config(parser) -> dict:
+    """
+    Converts parser, so it includes data in the right format
+    :param parser: Args parser form which data is about to be converted
+    :return: Converted argument parser
+    """
     output = {}
     for key in parser:
         try:
@@ -23,14 +28,24 @@ def convert_config(parser):
     return output
 
 
-def data_check(data_path):
+def data_check(data_path: str) -> bool:
+    """
+    Check whether provided path includes some data
+    :param data_path: Path to data to be checked
+    :return: A boolean value whether provided path contains data
+    """
     try:
         return os.listdir(data_path) is not None
     except FileNotFoundError:
         return False
 
 
-def load_models(models_dir):
+def load_models(models_dir: str) -> (ImageEncoder, CaptionDecoder):
+    """
+    Loads method from provided directory
+    :param models_dir: Path to the dir from which models are loaded
+    :return: Tuple with loaded encoder and decoder
+    """
     encoder = tf.keras.models.load_model(os.path.join(models_dir, 'encoder'), compile=False,
                                          custom_objects={'ImageEncoder': ImageEncoder})
     decoder = tf.keras.models.load_model(os.path.join(models_dir, 'decoder'), compile=False,
@@ -46,6 +61,7 @@ def check_model_path(args):
     """
     if args.continue_training:
         if os.path.isdir(args.model_path):
-            if os.listdir(args.model_path) is not None:
+            if os.listdir(args.model_path):
                 return args
-    raise FileNotFoundError(f"The provided path: {args.model_path} is invalid")
+            raise FileNotFoundError(f"The provided path: {args.model_path} does not contain any files")
+        raise FileNotFoundError(f"The provided path: {args.model_path} is invalid")
