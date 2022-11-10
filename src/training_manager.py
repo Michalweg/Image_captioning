@@ -5,7 +5,7 @@ import time
 import tensorflow as tf
 
 from src.decoder import CaptionDecoder
-
+import numpy as np
 
 class TrainingManager:
     """
@@ -73,7 +73,7 @@ class TrainingManager:
 
         return loss, total_loss
 
-    def fit(self, batched_dataset) -> None:
+    def fit(self, batched_dataset) -> dict:
         """
         A method that fits a passed batched dataset to the model. It iterates through data, performs a train_step method
         (defined above) and calculates loss. Each 100 batches it checks whether save_model (based on self.save_model_check
@@ -82,7 +82,7 @@ class TrainingManager:
         :param batched_dataset: Data to be fitted
         """
         prev_epoch_loss = 999
-        loss_plot = []
+        history_dict = {"epochs": 0, "loss": []}
 
         for epoch in range(self.config['epochs']):
             start = time.time()
@@ -103,9 +103,8 @@ class TrainingManager:
                         self.save_model(scaled_batch_los)
 
             current_loss = total_loss / num_steps
-
-            # storing the epoch end loss value to plot later
-            loss_plot.append(current_loss)
+            history_dict['epochs'] += 1
+            history_dict['loss'].append(current_loss.numpy())
 
             print('Epoch {} Loss {:.6f} Time taken {:.1f} sec'.format(
                 epoch + 1,
@@ -118,6 +117,8 @@ class TrainingManager:
                 print("Stopping because improvement={} < {}".format(improvement, self.config['early_stop_thresh']))
                 break
             prev_epoch_loss = current_loss
+
+        return history_dict
 
     def save_model(self, loss_value) -> None:
         """
@@ -156,4 +157,13 @@ class TrainingManager:
             if loss_value < min(saved_models_losses):  # If current model is better than others
                 return True
         return True  # No model was saved yet, so save the current one
+
+    # def predict(self, data):
+    #     features = self.encoder(data)
+    #     hidden = CaptionDecoder.reset_state(10, self.decoder.units)
+    #     dec_input = tf.expand_dims([self.tokenizer(['starttoken'])[0][0]] * 7, 1)
+    #     predictions = np.inf
+    #     while predictions != self.tokenizer(['endtoken'][0][0]):
+    #         predictions, hidden, _ = self.decoder((dec_input, features, hidden))
+    #         dec_input = tf.expand_dims(target[:, i], 1)
 
