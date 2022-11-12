@@ -2,6 +2,7 @@ import ast
 import os
 
 import tensorflow as tf
+from tensorflow.python.framework.ops import EagerTensor
 
 from src.decoder import CaptionDecoder
 from src.encoder import ImageEncoder
@@ -65,3 +66,31 @@ def check_model_path(args):
                 return args
             raise FileNotFoundError(f"The provided path: {args.model_path} does not contain any files")
         raise FileNotFoundError(f"The provided path: {args.model_path} is invalid")
+
+
+def prepare_image_for_model(file_path):
+    """
+    Reading and resizing an image so encoder's backbone model (inception_v3) can digest it
+    :param file_path: Path to a file
+    :return: Preprocessed image ready to be digested by a model
+    """
+    image_tensor = read_image_from_path(file_path)
+    image_tensor = tf.cast(image_tensor, tf.float32)
+    image_tensor = tf.keras.applications.inception_v3.preprocess_input(image_tensor)
+    image_tensor = tf.expand_dims(image_tensor, 0)
+    return image_tensor
+
+
+def read_image_from_path(file_path: str) -> EagerTensor:
+    img_converter = {'.jpeg': tf.io.decode_jpeg,
+                     '.png': tf.io.decode_png,
+                     '.bmp': tf.io.decode_bmp}
+
+    image_extension = os.path.splitext(file_path)[1]
+    if image_extension not in img_converter.keys():
+        raise NotImplementedError(f"{image_extension} is not yet supported")
+
+    image_file = tf.io.read_file(file_path)
+    image_tensor = img_converter[image_extension](image_file)
+
+    return image_tensor

@@ -3,13 +3,15 @@ import re
 import time
 
 import tensorflow as tf
+from tensorflow.python.framework.ops import EagerTensor
 
 from src.decoder import CaptionDecoder
-import numpy as np
+from src.utils import prepare_image_for_model
 
-class TrainingManager:
+
+class ModelManager:
     """
-    Class that orchestrate the process of training model.
+    Class that orchestrates the usage of a model.
     """
 
     def __init__(self, encoder, decoder, tokenizer, optimizer, config, saved_models_file_dir='saved_models'):
@@ -154,16 +156,93 @@ class TrainingManager:
                 saved_models_losses.append(float(saved_model_loss[0]))  # If loss is float, appends to the list
 
         if saved_models_losses:  # If any model already saved
-            if loss_value < min(saved_models_losses):  # If current model is better than others
-                return True
+            return loss_value < min(saved_models_losses)  # If current model is better than others
+
         return True  # No model was saved yet, so save the current one
 
-    # def predict(self, data):
-    #     features = self.encoder(data)
-    #     hidden = CaptionDecoder.reset_state(10, self.decoder.units)
-    #     dec_input = tf.expand_dims([self.tokenizer(['starttoken'])[0][0]] * 7, 1)
-    #     predictions = np.inf
-    #     while predictions != self.tokenizer(['endtoken'][0][0]):
-    #         predictions, hidden, _ = self.decoder((dec_input, features, hidden))
-    #         dec_input = tf.expand_dims(target[:, i], 1)
+    def predict(self, data_source) -> list[list]:
+        """
+        Method that predicts captions given data. Data_source can be either of a form of string (path to an image), or
+        a tensor in the shape of [no. images, width, height, no, channels]
+        :param data_source: Handled data sources: str (path to an image) tensor, or list of paths to which predictions
+        should be made
+        :return: List of lists (for each image one list)
+        """
+        if type(data_source) == str:
+            generated_captions = self.predict_from_path(data_source)
+        elif type(data_source) == EagerTensor:
+            generated_captions = self.predict_from_tensor(data_source)
+        elif type(data_source) == list:
+            generated_captions = self.predict_form_paths_list(data_source)
+        else:
+            raise NotImplementedError(f"This data source: {data_source} is not yet implemented ")
+        return generated_captions
 
+    def predict_from_tensor(self, data) -> list[list]:
+        """
+        Iterates through images in a batch and creates predictions from images which are already preprocessed, in the
+        form of tensor
+        :param data: Preprocessed images in the form of a tensor with shape [no. images, width, height, no.channels]
+        :return: List with captions for each image
+        """
+        all_images_outcome = []
+        data = tf.expand_dims(data, 0) if len(data.shape) == 3 else data  # If just one image is passed
+        for image in data:
+            image = tf.expand_dims(image, 0) if len(image.shape) == 3 else image  # Add batch dim if needed
+            image_captions = self.predict_image(image)
+            all_images_outcome.append(image_captions)
+
+        return all_images_outcome
+
+    def predict_from_a_file(self, file_path) -> list[str]:
+        """
+        First it reads and preprocessses a file with prepare_image_for_model method and the generates captions with
+        self.predict_image method
+        :param file_path: File path to an image to generate captions for
+        :return: List of generated captions for the passed image
+        """
+        image = prepare_image_for_model(file_path)
+        captions = self.predict_image(image)
+        return captions
+
+    def predict_image(self, image) -> list[str]:
+        """
+        Creates captions for an image
+        :param image: Image to generate captions for
+        :return: List of generated captions
+        """
+        outcome = []
+        features = self.encoder(image)
+        hidden = CaptionDecoder.reset_state(1, self.decoder.units)
+        dec_input = tf.expand_dims([self.tokenizer(['starttoken'])[0][0]], 0)
+
+        for i in range(self.config['max_caption_len']):
+            predictions, hidden, _ = self.decoder((dec_input, features, hidden))
+            predicted_id = tf.random.categorical(predictions, 1)[0][0].numpy()
+            outcome.append(self.tokenizer.get_vocabulary()[predicted_id])
+            if self.tokenizer.get_vocabulary()[predicted_id] == 'endtoken':
+                break
+            dec_input = tf.expand_dims([predicted_id], 0)
+
+        return outcome
+
+    def predict_form_paths_list(self, paths_list:list) -> list[list]:
+        generated_captions = []
+
+        for file_path in paths_list:
+            captions_for_image = self.predict_from_a_file(file_path)
+            generated_captions.append(captions_for_image)
+
+        return generated_captions
+
+    def predict_from_path(self, path):
+        generated_captions = []
+        if os.path.isdir(path):
+            for file_path in os.listdir(path):
+                image_path = os.path.join(path, file_path)
+                one_file_captions = self.predict_from_a_file(image_path)
+                generated_captions.append(one_file_captions)
+        else:
+            generated_captions = self.predict_from_a_file(path)
+
+        return generated_captions
